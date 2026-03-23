@@ -34,13 +34,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-st.markdown("""
-    <style>
-        button[kind="secondary"] {
-            display: none !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 # ===================== UTIL =====================
 
