@@ -6,6 +6,22 @@ from decimal import Decimal
 # ===================== CONFIG =====================
 
 st.set_page_config(page_title="Excel → OFX", layout="centered")
+st.markdown("""
+    <style>
+        [data-testid="stToolbar"] {
+            display: none;
+        }
+        [data-testid="stDecoration"] {
+            display: none;
+        }
+        [data-testid="stStatusWidget"] {
+            display: none;
+        }
+        footer {
+            visibility: hidden;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # ===================== UTIL =====================
 
