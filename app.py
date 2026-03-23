@@ -8,15 +8,27 @@ from decimal import Decimal
 st.set_page_config(page_title="Excel → OFX", layout="centered")
 st.markdown("""
     <style>
+        /* remove menu superior */
         [data-testid="stToolbar"] {
             display: none;
         }
+
+        /* remove decoração lateral */
         [data-testid="stDecoration"] {
             display: none;
         }
+
+        /* remove status */
         [data-testid="stStatusWidget"] {
             display: none;
         }
+
+        /* remove botão flutuante (esse vermelho aí) */
+        .stActionButton {
+            display: none;
+        }
+
+        /* remove footer */
         footer {
             visibility: hidden;
         }
