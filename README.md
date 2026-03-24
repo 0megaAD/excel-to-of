@@ -1,7 +1,7 @@
 # excel-to-of
 
 <p align="center">
-  <strong>Conversor simples de Excel para OF (formato específico)</strong>
+  <strong>Conversor simples de Excel para OFX </strong>
 </p>
 
 ---
