@@ -41,7 +41,7 @@ def ler_excel_inteligente(uploaded_file):
     for i in range(10):
         try:
             uploaded_file.seek(0)
-            df = pd.read_excel(uploaded_file, header=i, dtype=str)
+            df = pd.read_excel(uploaded_file, header=i, dtype=str, engine="openpyxl")
             cols = [str(c).lower() for c in df.columns]
 
             if (
@@ -49,15 +49,16 @@ def ler_excel_inteligente(uploaded_file):
                 (any('valor' in c for c in cols) or any('r$' in c for c in cols))
             ):
                 return df, i
-        except:
-            continue
+        except Exception as e:
+            st.error(str(e))
+            raise
 
     raise ValueError("Não foi possível identificar automaticamente o cabeçalho.")
 
 
 def extrair_info_bancaria(uploaded_file):
     uploaded_file.seek(0)
-    df_topo = pd.read_excel(uploaded_file, header=None, nrows=1)
+    df_topo = pd.read_excel(uploaded_file, header=None, nrows=1, engine="openpyxl")
 
     valores = df_topo.iloc[0].tolist()
 
@@ -249,8 +250,8 @@ agencia_auto, conta_auto = (None, None)
 if uploaded_file:
     try:
         agencia_auto, conta_auto = extrair_info_bancaria(uploaded_file)
-    except:
-        pass
+    except Exception as e:
+        st.warning("Não foi possível extrair agência/conta automaticamente")
 
 agencia = col1.text_input("Agência", value=agencia_auto or "")
 conta = col2.text_input("Conta", value=conta_auto or "")
