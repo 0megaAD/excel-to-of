@@ -1,6 +1,4 @@
---only-binary=:all:
 streamlit==1.33.0
-pandas>=2.3.3
+pandas==2.2.2
 openpyxl==3.1.2
 xlrd==2.0.1
-pillow>=10.3.0
