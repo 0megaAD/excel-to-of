@@ -130,7 +130,23 @@ def validar_colunas(df):
 # ===================== CONVERSÃO =====================
 
 def converter_para_ofx(df, agencia, conta, bank_id):
+    
+    # ===== LIMPEZA CRÍTICA (ADICIONAR AQUI) =====
+    agencia = ''.join(filter(str.isdigit, str(agencia or ''))).zfill(4)
+    conta = ''.join(filter(str.isdigit, str(conta or '')))
+    bank_id = ''.join(filter(str.isdigit, str(bank_id or '')))
+    
+    conta = conta[:-1] if len(conta) > 1 else conta
+    
+    if len(bank_id) < 3:
+        raise ValueError("Código do banco inválido (use código FEBRABAN, ex: 341, 237, 033)")
+    
+    if not conta:
+        raise ValueError("Conta inválida (vazia ou formato errado)")
 
+    if not bank_id:
+        raise ValueError("Código do banco inválido")
+    
     df = detectar_colunas(df)
 
     # 🔥 remove colunas duplicadas (ESSENCIAL)
@@ -161,10 +177,10 @@ def converter_para_ofx(df, agencia, conta, bank_id):
     df_mov = df_mov.sort_values('data')
 
     start_dt = df_mov['data'].min().strftime("%Y%m%d")
-    end_dt = df_mov['data'].max().strftime("%Y%m%d")
+    end_dt = df_mov['data'].max().strftime("%Y%m%d%H%M%S")
 
     saldo_series = df['saldo'].dropna()
-    saldo_final = saldo_series.iloc[-1] if not saldo_series.empty else Decimal('0.00')
+    saldo_final = saldo_series.iloc[-1] if not saldo_series.empty else Decimal(a'0.00')
 
     # ===================== OFX =====================
 
@@ -172,7 +188,7 @@ def converter_para_ofx(df, agencia, conta, bank_id):
 DATA:OFXSGML
 VERSION:103
 SECURITY:NONE
-ENCODING:UTF-8
+ENCODING:USASCII
 CHARSET:1252
 COMPRESSION:NONE
 OLDFILEUID:NONE
@@ -184,7 +200,8 @@ NEWFILEUID:NONE
 <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
 <DTSERVER>{datetime.now().strftime("%Y%m%d%H%M%S")}</DTSERVER>
 <LANGUAGE>POR</LANGUAGE>
-<FI><ORG>Banco</ORG><FID>999</FID></FI>
+<FI><ORG>{bank_id}</ORG><FID>{bank_id}</FID></FI>
+<INTU.BID>{bank_id}</INTU.BID>
 </SONRS>
 </SIGNONMSGSRSV1>
 <BANKMSGSRSV1>
@@ -207,7 +224,7 @@ NEWFILEUID:NONE
     for idx, row in df_mov.iterrows():
         valor = float(row['valor'])
         tipo = "CREDIT" if valor >= 0 else "DEBIT"
-        data = row['data'].strftime("%Y%m%d")
+        data = row['data'].strftime("%Y%m%d%H%M%S")
 
         fitid = f"{data}{idx:06d}"
 
