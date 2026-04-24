@@ -131,7 +131,6 @@ def validar_colunas(df):
 
 def converter_para_ofx(df, agencia, conta, bank_id):
     
-    # ===== LIMPEZA CRÍTICA (ADICIONAR AQUI) =====
     agencia = ''.join(filter(str.isdigit, str(agencia or ''))).zfill(4)
     conta = ''.join(filter(str.isdigit, str(conta or '')))
     bank_id = ''.join(filter(str.isdigit, str(bank_id or '')))
@@ -149,12 +148,10 @@ def converter_para_ofx(df, agencia, conta, bank_id):
     
     df = detectar_colunas(df)
 
-    # 🔥 remove colunas duplicadas (ESSENCIAL)
     df = df.loc[:, ~df.columns.duplicated()]
 
     validar_colunas(df)
 
-    # 🔥 garante que 'valor' não virou DataFrame
     if isinstance(df['valor'], pd.DataFrame):
         df['valor'] = df['valor'].iloc[:, 0]
 
@@ -168,7 +165,6 @@ def converter_para_ofx(df, agencia, conta, bank_id):
 
     df = df.dropna(subset=['data'])
 
-    # 🔥 evita bug do pandas
     df_mov = df[df['valor'].apply(lambda x: float(x) != 0)].copy()
 
     if df_mov.empty:
