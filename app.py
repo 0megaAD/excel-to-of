@@ -180,7 +180,7 @@ def converter_para_ofx(df, agencia, conta, bank_id):
     end_dt = df_mov['data'].max().strftime("%Y%m%d%H%M%S")
 
     saldo_series = df['saldo'].dropna()
-    saldo_final = saldo_series.iloc[-1] if not saldo_series.empty else Decimal(a'0.00')
+    saldo_final = saldo_series.iloc[-1] if not saldo_series.empty else Decimal('0.00')
 
     # ===================== OFX =====================
 
