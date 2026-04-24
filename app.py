@@ -197,7 +197,6 @@ NEWFILEUID:NONE
 <DTSERVER>{datetime.now().strftime("%Y%m%d%H%M%S")}</DTSERVER>
 <LANGUAGE>POR</LANGUAGE>
 <FI><ORG>{bank_id}</ORG><FID>{bank_id}</FID></FI>
-<INTU.BID>{bank_id}</INTU.BID>
 </SONRS>
 </SIGNONMSGSRSV1>
 <BANKMSGSRSV1>
