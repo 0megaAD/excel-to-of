@@ -6,34 +6,31 @@ from decimal import Decimal
 # ===================== CONFIG =====================
 
 st.set_page_config(page_title="Excel → OFX", layout="centered")
+
 st.markdown("""
     <style>
-        /* remove menu superior */
         [data-testid="stToolbar"] {
             display: none;
         }
 
-        /* remove decoração lateral */
         [data-testid="stDecoration"] {
             display: none;
         }
 
-        /* remove status */
         [data-testid="stStatusWidget"] {
             display: none;
         }
 
-        /* remove botão flutuante (esse vermelho aí) */
         .stActionButton {
             display: none;
         }
 
-        /* remove footer */
         footer {
             visibility: hidden;
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 # ===================== UTIL =====================
 
@@ -41,24 +38,43 @@ def ler_excel_inteligente(uploaded_file):
     for i in range(10):
         try:
             uploaded_file.seek(0)
-            df = pd.read_excel(uploaded_file, header=i, dtype=str, engine="openpyxl")
+
+            df = pd.read_excel(
+                uploaded_file,
+                header=i,
+                dtype=str,
+                engine="openpyxl"
+            )
+
             cols = [str(c).lower() for c in df.columns]
 
             if (
-                any('data' in c for c in cols) and
-                (any('valor' in c for c in cols) or any('r$' in c for c in cols))
+                any('data' in c for c in cols)
+                and (
+                    any('valor' in c for c in cols)
+                    or any('r$' in c for c in cols)
+                )
             ):
                 return df, i
+
         except Exception as e:
             st.error(str(e))
             raise
 
-    raise ValueError("Não foi possível identificar automaticamente o cabeçalho.")
+    raise ValueError(
+        "Não foi possível identificar automaticamente o cabeçalho."
+    )
 
 
 def extrair_info_bancaria(uploaded_file):
     uploaded_file.seek(0)
-    df_topo = pd.read_excel(uploaded_file, header=None, nrows=1, engine="openpyxl")
+
+    df_topo = pd.read_excel(
+        uploaded_file,
+        header=None,
+        nrows=1,
+        engine="openpyxl"
+    )
 
     valores = df_topo.iloc[0].tolist()
 
@@ -69,10 +85,10 @@ def extrair_info_bancaria(uploaded_file):
         v = str(val).strip().lower()
 
         if v == "agencia" and i + 1 < len(valores):
-            agencia = str(valores[i+1]).strip()
+            agencia = str(valores[i + 1]).strip()
 
         if v == "conta" and i + 1 < len(valores):
-            conta = str(valores[i+1]).strip()
+            conta = str(valores[i + 1]).strip()
 
     return agencia, conta
 
@@ -96,7 +112,11 @@ def parse_valor_br(valor):
 
 
 def clean_text(texto):
-    return str(texto).encode('latin-1', 'ignore').decode('latin-1')
+    return (
+        str(texto)
+        .encode('latin-1', 'ignore')
+        .decode('latin-1')
+    )
 
 
 def detectar_colunas(df):
@@ -107,12 +127,16 @@ def detectar_colunas(df):
 
         if 'data' in cl:
             rename[col] = 'data'
+
         elif 'hist' in cl:
             rename[col] = 'historico'
+
         elif 'doc' in cl:
             rename[col] = 'documento'
+
         elif 'valor' in cl or 'r$' in cl:
             rename[col] = 'valor'
+
         elif 'saldo' in cl:
             rename[col] = 'saldo'
 
@@ -121,31 +145,60 @@ def detectar_colunas(df):
 
 def validar_colunas(df):
     obrigatorias = ['data', 'valor']
-    faltando = [c for c in obrigatorias if c not in df.columns]
+
+    faltando = [
+        c for c in obrigatorias
+        if c not in df.columns
+    ]
 
     if faltando:
-        raise ValueError(f"Colunas obrigatórias ausentes: {', '.join(faltando)}")
+        raise ValueError(
+            f"Colunas obrigatórias ausentes: {', '.join(faltando)}"
+        )
 
 
 # ===================== CONVERSÃO =====================
 
-def converter_para_ofx(df, agencia, conta, bank_id):
-    
-    agencia = ''.join(filter(str.isdigit, str(agencia or ''))).zfill(4)
-    conta = ''.join(filter(str.isdigit, str(conta or '')))
-    bank_id = ''.join(filter(str.isdigit, str(bank_id or '')))
-    
+def converter_para_ofx(
+    df,
+    agencia,
+    conta,
+    bank_id,
+    formato_data="BR"
+):
+
+    agencia = ''.join(
+        filter(str.isdigit, str(agencia or ''))
+    ).zfill(4)
+
+    conta = ''.join(
+        filter(str.isdigit, str(conta or ''))
+    )
+
+    bank_id = ''.join(
+        filter(str.isdigit, str(bank_id or ''))
+    )
+
+    # Remove o último dígito da conta, mantendo
+    # o comportamento original do seu projeto
     conta = conta[:-1] if len(conta) > 1 else conta
-    
+
     if len(bank_id) < 3:
-        raise ValueError("Código do banco inválido (use código FEBRABAN, ex: 341, 237, 033)")
-    
+        raise ValueError(
+            "Código do banco inválido "
+            "(use código FEBRABAN, ex: 341, 237, 033)"
+        )
+
     if not conta:
-        raise ValueError("Conta inválida (vazia ou formato errado)")
+        raise ValueError(
+            "Conta inválida (vazia ou formato errado)"
+        )
 
     if not bank_id:
-        raise ValueError("Código do banco inválido")
-    
+        raise ValueError(
+            "Código do banco inválido"
+        )
+
     df = detectar_colunas(df)
 
     df = df.loc[:, ~df.columns.duplicated()]
@@ -155,28 +208,64 @@ def converter_para_ofx(df, agencia, conta, bank_id):
     if isinstance(df['valor'], pd.DataFrame):
         df['valor'] = df['valor'].iloc[:, 0]
 
-    df['data'] = pd.to_datetime(df['data'], dayfirst=True, errors='coerce')
+    # ===================== DATA =====================
+
+    if formato_data == "US":
+        # Mês/Dia/Ano
+        df['data'] = pd.to_datetime(
+            df['data'],
+            dayfirst=False,
+            errors='coerce'
+        )
+    else:
+        # Dia/Mês/Ano
+        df['data'] = pd.to_datetime(
+            df['data'],
+            dayfirst=True,
+            errors='coerce'
+        )
+
+    # ===================== VALORES =====================
+
     df['valor'] = df['valor'].apply(parse_valor_br)
 
     if 'saldo' in df.columns:
         df['saldo'] = df['saldo'].apply(parse_valor_br)
     else:
-        df['saldo'] = [Decimal('0')] * len(df)
+        df['saldo'] = [
+            Decimal('0')
+        ] * len(df)
 
     df = df.dropna(subset=['data'])
 
-    df_mov = df[df['valor'].apply(lambda x: float(x) != 0)].copy()
+    df_mov = df[
+        df['valor'].apply(
+            lambda x: float(x) != 0
+        )
+    ].copy()
 
     if df_mov.empty:
-        raise ValueError("Nenhuma movimentação encontrada.")
+        raise ValueError(
+            "Nenhuma movimentação encontrada."
+        )
 
     df_mov = df_mov.sort_values('data')
 
-    start_dt = df_mov['data'].min().strftime("%Y%m%d")
-    end_dt = df_mov['data'].max().strftime("%Y%m%d%H%M%S")
+    start_dt = df_mov['data'].min().strftime(
+        "%Y%m%d"
+    )
+
+    end_dt = df_mov['data'].max().strftime(
+        "%Y%m%d%H%M%S"
+    )
 
     saldo_series = df['saldo'].dropna()
-    saldo_final = saldo_series.iloc[-1] if not saldo_series.empty else Decimal('0.00')
+
+    saldo_final = (
+        saldo_series.iloc[-1]
+        if not saldo_series.empty
+        else Decimal('0.00')
+    )
 
     # ===================== OFX =====================
 
@@ -199,32 +288,51 @@ NEWFILEUID:NONE
 <FI><ORG>{bank_id}</ORG><FID>{bank_id}</FID></FI>
 </SONRS>
 </SIGNONMSGSRSV1>
+
 <BANKMSGSRSV1>
 <STMTTRNRS>
 <TRNUID>1</TRNUID>
 <STATUS><CODE>0</CODE><SEVERITY>INFO</SEVERITY></STATUS>
+
 <STMTRS>
 <CURDEF>BRL</CURDEF>
+
 <BANKACCTFROM>
 <BANKID>{bank_id}</BANKID>
 <BRANCHID>{agencia}</BRANCHID>
 <ACCTID>{conta}</ACCTID>
 <ACCTTYPE>CHECKING</ACCTTYPE>
 </BANKACCTFROM>
+
 <BANKTRANLIST>
 <DTSTART>{start_dt}</DTSTART>
 <DTEND>{end_dt}</DTEND>
 """
 
     for idx, row in df_mov.iterrows():
+
         valor = float(row['valor'])
-        tipo = "CREDIT" if valor >= 0 else "DEBIT"
-        data = row['data'].strftime("%Y%m%d%H%M%S")
+
+        tipo = (
+            "CREDIT"
+            if valor >= 0
+            else "DEBIT"
+        )
+
+        data = row['data'].strftime(
+            "%Y%m%d%H%M%S"
+        )
 
         fitid = f"{data}{idx:06d}"
 
-        nome = clean_text(row.get('historico', ''))[:32]
-        memo = clean_text(f"{row.get('historico', '')} | Doc: {row.get('documento', '')}")[:255]
+        nome = clean_text(
+            row.get('historico', '')
+        )[:32]
+
+        memo = clean_text(
+            f"{row.get('historico', '')} | "
+            f"Doc: {row.get('documento', '')}"
+        )[:255]
 
         ofx += f"""<STMTTRN>
 <TRNTYPE>{tipo}</TRNTYPE>
@@ -237,14 +345,17 @@ NEWFILEUID:NONE
 """
 
     ofx += f"""</BANKTRANLIST>
+
 <LEDGERBAL>
 <BALAMT>{saldo_final:.2f}</BALAMT>
 <DTASOF>{end_dt}</DTASOF>
 </LEDGERBAL>
+
 </STMTRS>
 </STMTTRNRS>
 </BANKMSGSRSV1>
-</OFX>"""
+</OFX>
+"""
 
     return ofx.encode("utf-8")
 
@@ -253,41 +364,118 @@ NEWFILEUID:NONE
 
 st.title("🧾 Conversor Excel para OFX")
 
-uploaded_file = st.file_uploader("Envie seu extrato (.xls/.xlsx)", type=["xls", "xlsx"])
+uploaded_file = st.file_uploader(
+    "Envie seu extrato (.xls/.xlsx)",
+    type=["xls", "xlsx"]
+)
 
 col1, col2 = st.columns(2)
 
-agencia_auto, conta_auto = (None, None)
-
-if uploaded_file:
-    try:
-        agencia_auto, conta_auto = extrair_info_bancaria(uploaded_file)
-    except Exception as e:
-        st.warning("Não foi possível extrair agência/conta automaticamente")
-
-agencia = col1.text_input("Agência", value=agencia_auto or "")
-conta = col2.text_input("Conta", value=conta_auto or "")
-
-bank_id = st.text_input("Código do Banco", "")
+agencia_auto = None
+conta_auto = None
 
 if uploaded_file:
 
     try:
-        df, header = ler_excel_inteligente(uploaded_file)
+        agencia_auto, conta_auto = (
+            extrair_info_bancaria(uploaded_file)
+        )
 
-        st.success(f"Cabeçalho detectado automaticamente (linha {header})")
+    except Exception:
+        st.warning(
+            "Não foi possível extrair "
+            "agência/conta automaticamente"
+        )
+
+
+agencia = col1.text_input(
+    "Agência",
+    value=agencia_auto or ""
+)
+
+conta = col2.text_input(
+    "Conta",
+    value=conta_auto or ""
+)
+
+bank_id = st.text_input(
+    "Código do Banco",
+    ""
+)
+
+
+# ===================== FORMATO DA DATA =====================
+
+if bank_id.strip() in ["033", "33"]:
+    formato_data = "US"
+
+    st.info(
+        "Santander detectado: usando formato "
+        "Mês/Dia/Ano automaticamente."
+    )
+
+else:
+    formato_data_opcao = st.selectbox(
+        "Formato da data do extrato",
+        options=[
+            "Dia/Mês/Ano",
+            "Mês/Dia/Ano"
+        ]
+    )
+
+    if formato_data_opcao == "Mês/Dia/Ano":
+        formato_data = "US"
+    else:
+        formato_data = "BR"
+
+
+# ===================== PROCESSAMENTO =====================
+
+if uploaded_file:
+
+    try:
+
+        df, header = ler_excel_inteligente(
+            uploaded_file
+        )
+
+        st.success(
+            f"Cabeçalho detectado automaticamente "
+            f"(linha {header})"
+        )
 
         st.subheader("Preview do arquivo")
-        st.dataframe(df.head())
 
-        if st.button("🚀 Converter para OFX", type="primary"):
+        st.dataframe(
+            df.head()
+        )
 
-            with st.spinner("Processando..."):
-                ofx = converter_para_ofx(df, agencia, conta, bank_id)
+        if st.button(
+            "🚀 Converter para OFX",
+            type="primary"
+        ):
 
-                nome = uploaded_file.name.rsplit(".", 1)[0] + ".ofx"
+            with st.spinner(
+                "Processando..."
+            ):
 
-                st.success("Arquivo gerado com sucesso")
+                ofx = converter_para_ofx(
+                    df,
+                    agencia,
+                    conta,
+                    bank_id,
+                    formato_data
+                )
+
+                nome = (
+                    uploaded_file.name
+                    .rsplit(".", 1)[0]
+                    + ".ofx"
+                )
+
+                st.success(
+                    "Arquivo gerado com sucesso"
+                )
 
                 st.download_button(
                     "📥 Baixar OFX",
@@ -297,4 +485,7 @@ if uploaded_file:
                 )
 
     except Exception as e:
-        st.error(f"Erro: {str(e)}")
+
+        st.error(
+            f"Erro: {str(e)}"
+        )
